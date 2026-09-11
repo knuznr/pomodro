@@ -1,0 +1,11 @@
+* text=auto
+*.py text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+/docs export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/.claude export-ignore
+/.codex export-ignore
+
+/.learning export-ignore

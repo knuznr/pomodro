@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pomodro"
+version = "0.1.0"
+license = {file = "LICENSE"}
+description = "A small desktop Pomodoro timer built with PyQt5"
+requires-python = ">=3.12"
+dependencies = ["PyQt5==5.15.11"]
+
+[tool.setuptools]
+py-modules = ["app"]
+packages = ["pomodoro"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
