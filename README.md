@@ -1,66 +1,80 @@
 # pomodro
 
-Windows ve macOS için sade bir Pomodoro uygulaması. Görevlerini sıraya koy, tek işe odaklan, molanı zamanında ver.
+A minimal, distraction-free Pomodoro timer built for Windows and macOS.
 
-## İndir
+## Why I Built It
 
-**[En güncel sürüm](https://github.com/knuznr/pomodro/releases/latest)**
+Back in 2025, while trying to build a better daily workflow and stay focused, I spent a lot of time watching videos and reading articles on deep work. When looking for a tool, most options felt either overly cluttered, full of distractions, or tied behind subscriptions.
 
-- **Windows x64:** `pomodoro-windows-x64.zip` dosyasını indir, tamamını bir klasöre çıkar ve `Pomodoro.exe` dosyasını aç. `_internal` klasörünü yanında tut. Python kurman gerekmez.
-- **macOS / Apple Silicon:** `pomodoro-macos-arm64.zip` dosyasını çıkar ve `Pomodoro.app` dosyasını Applications klasörüne taşı.
+I just wanted something clean: queue up tasks, focus on one thing at a time, and get a gentle nudge when it's time to take a break. So, I built `pomodro` to solve my own problem. It's been part of my routine ever since, and I'm sharing it here for anyone looking for that same simplicity.
 
-Paketler geliştirici sertifikasıyla imzalanmamıştır. Windows veya macOS ilk açılışta güvenlik uyarısı gösterebilir.
+---
 
-## Neler yapar?
+## Download
 
-- Ayarlanabilir çalışma, kısa mola ve her dört çalışma sonrası uzun mola.
-- Başlat, duraklat, devam et ve sıfırla.
-- Görev ekle, tamamla, sil ve son silinenleri geri al.
-- Görevleri odaklanma sırasına koy; **Sıradaki** ile sıradaki uygun göreve geç.
-- Görevler, sıra, seçili görev, süre ayarları ve günlük toplam otomatik kaydedilir.
-- Seans bitişinde sistem sesi ve desteklenen ortamlarda masaüstü bildirimi.
+Grab the latest builds on the **[Releases](https://github.com/knuznr/pomodro/releases/latest)** page:
 
-Görev seçmek sayacı otomatik başlatmaz. Seans bitişi de görevi otomatik tamamlamaz; görevini seçip **Tamamla** düğmesini kullanabilirsin. Mola ve çalışma seanslarını **Başlat** ile başlatırsın.
+- **Windows (x64):** Download `pomodoro-windows-x64.zip`, extract it to a folder, and launch `Pomodoro.exe` (keep the `_internal` folder in the same directory). No Python installation required.
+- **macOS (Apple Silicon):** Unzip `pomodoro-macos-arm64.zip` and drag `Pomodoro.app` into your Applications folder.
 
-Silme geçmişi yalnızca açık oturumda tutulur. Uygulama yeniden açıldığında sayaç yeni bir çalışma seansıyla başlar. Günlük toplam yerel tarihe göre hesaplanır. Sistem uykusundan sonra platformun monotonik saat davranışına göre kalan süre değişebilir; geçmiş seanslar otomatik zincir halinde sayılmaz.
+> **Note:** Binaries are not signed with paid developer certificates, so your OS may show an initial security prompt on first launch.
 
-## Kaynaktan çalıştır
+---
 
-Python 3.12 veya üzeri.
+## Features & Philosophy
 
-Windows PowerShell:
+- **Simple Intervals:** 25-minute focus blocks, short breaks, and an extended break every four sessions (all durations customizable).
+- **Task Queue:** Add, arrange, and hit **Next** to move through your focus list.
+- **Persistent State:** Tasks, queue order, timers, and total daily focus time are saved automatically.
+- **Gentle Alerts:** Native system chime and desktop notifications when sessions end.
 
+**Intentional Design**  
+The app avoids making assumptions for you. Selecting a task won’t auto-start the timer, and an expiring timer won’t mark your task as done. You stay in control: start sessions with **Start**, take your break, and hit **Complete** when you're truly finished.
+
+---
+
+## Running from Source
+
+Requires Python 3.12+.
+
+**Windows (PowerShell):**
 ```powershell
-git clone https://github.com/knuznr/pomodro.git
+git clone [https://github.com/knuznr/pomodro.git](https://github.com/knuznr/pomodro.git)
 cd pomodro
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .venv\Scripts\python.exe app.py
+
 ```
 
-macOS:
+**macOS:**
 
 ```sh
-git clone https://github.com/knuznr/pomodro.git
+git clone [https://github.com/knuznr/pomodro.git](https://github.com/knuznr/pomodro.git)
 cd pomodro
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python app.py
+
 ```
 
-## Test ve paketleme
+---
 
-Sanal ortam etkinken:
+## Testing & Packaging
+
+With the virtual environment active:
 
 ```sh
 python -m pytest -q
 python -m PyInstaller --clean --noconfirm "Pomodoro Timer.spec"
 ```
 
-Windows paketi Windows'ta, Mac paketi macOS'te üretilir. GitHub Actions Python 3.12 ile test, paketleme ve paketlenmiş uygulamada beş saniyelik açılış kontrolü yapar. Windows CI ortamı Windows Server 2022 x64, macOS ortamı Apple Silicon'dır. Bu otomasyon gerçek Windows 11 cihazında bildirim ve ekran ölçeği kontrolünün yerine geçmez.
+*Note: Windows builds are generated on Windows, and macOS builds on macOS. The repository includes GitHub Actions workflows on Python 3.12 to run test suites and smoke-test app launch sanity automatically.*
 
-## Lisans
+---
 
-GPL-3.0; ayrıntılar [LICENSE](LICENSE) dosyasında.
+## License
 
-PyQt5 ve Qt kullanır. PyQt5 GPLv3/ticari, Qt ise bileşenlerine göre LGPL/GPL/ticari koşullarla sunulur. Dağıtılan bağımlılıkların lisans dosyaları paket içinde korunur. [PyQt lisansı](https://www.riverbankcomputing.com/software/pyqt), [Qt lisansı](https://doc.qt.io/qt-5/licensing.html).
+Distributed under the **GPL-3.0** License. See [LICENSE](https://www.google.com/search?q=LICENSE) for details.
+
+Built with PyQt5 and Qt. Dependency licensing terms: [PyQt License](https://www.riverbankcomputing.com/software/pyqt) | [Qt License](https://doc.qt.io/qt-5/licensing.html)
