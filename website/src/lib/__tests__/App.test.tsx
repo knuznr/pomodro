@@ -338,4 +338,37 @@ describe('PomodoroApp', () => {
     // …while a save must never touch the load-error banner.
     expect(screen.getByText(loadBanner)).toBeInTheDocument();
   });
+
+  it('shows the one-time muted storage-fallback notice when the default path has no IndexedDB', async () => {
+    // Premise guard: jsdom ships no IndexedDB, so MOUNTING WITHOUT A STORAGE
+    // PROP makes the lazy default decision fall back to the in-memory
+    // adapter (spec §11 row: "IndexedDB unavailable → in-memory fallback
+    // storage + one-time muted notice"). This test exercises that fallback
+    // for real — memory load() resolves null, saves never fail.
+    expect(typeof indexedDB).toBe('undefined');
+    render(<PomodoroApp />);
+    expect(
+      await screen.findByText(
+        'Persistent browser storage is unavailable; data will be kept in memory for this session.',
+      ),
+    ).toBeInTheDocument();
+    // §11: the app still fully works for the session — hydrated UI (jsdom's
+    // en-US navigator picks English) with a live timer, and NO load banner
+    // (the notice is muted informational, not the error-style banner).
+    expect(await screen.findByRole('button', { name: 'Start' })).toBeInTheDocument();
+    expect(screen.queryByText('Kayıt okunamadı; varsayılan ayarlar açıldı.')).not.toBeInTheDocument();
+  });
+
+  it('does not show the storage-fallback notice when a storage is injected', async () => {
+    // The §11 notice describes the BROWSER environment; an explicitly
+    // injected storage (tests today, a future cloud adapter) must never
+    // trigger it — only the default selection path can.
+    render(<PomodoroApp storage={makeStorageStub()} />);
+    await screen.findByRole('button', { name: 'Başlat' });
+    expect(
+      screen.queryByText(
+        'Persistent browser storage is unavailable; data will be kept in memory for this session.',
+      ),
+    ).not.toBeInTheDocument();
+  });
 });

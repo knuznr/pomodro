@@ -29,18 +29,31 @@ interface PomodoroAppProps {
   storage?: PomodoroStorage;
 }
 
+interface DefaultStorageDecision {
+  storage: PomodoroStorage;
+  /** True when the browser offers a durable store (the IndexedDB global). */
+  durable: boolean;
+}
+
 /**
  * Gated + memoized default storage. `createIndexedDbStorage`'s `= indexedDB`
  * default parameter would throw a ReferenceError where the global is absent
  * (jsdom, hardened private modes), so the decision is guarded with `typeof`
- * and only evaluated on first render — never at module import.
+ * and only evaluated on first render — never at module import. The decision
+ * also records WHICH branch it took: spec §11 pins a one-time muted notice
+ * to the in-memory fallback, so the component needs the durability verdict,
+ * not just the adapter.
  */
-let defaultStorage: PomodoroStorage | null = null;
-function getDefaultStorage(): PomodoroStorage {
-  if (!defaultStorage) {
-    defaultStorage = typeof indexedDB !== 'undefined' ? createIndexedDbStorage() : createMemoryStorage();
+let defaultDecision: DefaultStorageDecision | null = null;
+function getDefaultStorage(): DefaultStorageDecision {
+  if (!defaultDecision) {
+    const durable = typeof indexedDB !== 'undefined';
+    defaultDecision = {
+      storage: durable ? createIndexedDbStorage() : createMemoryStorage(),
+      durable,
+    };
   }
-  return defaultStorage;
+  return defaultDecision;
 }
 
 const TICK_MS = 200;
@@ -65,7 +78,18 @@ function PhaseToast({ kind, onDismiss }: { kind: 'work' | 'break' | null; onDism
   );
 }
 
-export default function PomodoroApp({ storage = getDefaultStorage() }: PomodoroAppProps) {
+export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppProps = {}) {
+  // Default selection path (no storage prop): the memoized decision above
+  // picks the adapter. An injected storage counts as durable by declaration
+  // — the §11 notice describes the browser environment, not tests or a
+  // future explicitly-wired adapter.
+  const { storage, durable } = injectedStorage
+    ? { storage: injectedStorage, durable: true }
+    : getDefaultStorage();
+  // Spec §11: one-time muted notice for the in-memory fallback. It renders
+  // for the whole session in a muted tone (never error-style, independent of
+  // saveWarning/loadError) and can only appear on the default path.
+  const storageFallbackNotice = !durable;
   const storeRef = useRef(new TaskStore());
   const queueRef = useRef(new FocusQueue(storeRef.current));
   const durationsRef = useRef<Durations>(DEFAULT_DURATIONS);
@@ -378,6 +402,13 @@ export default function PomodoroApp({ storage = getDefaultStorage() }: PomodoroA
         {storageError && (
           <Alert tone="warning" onDismiss={() => setStorageError(false)}>
             <AlertTitle>{translate(lang, 'storage_load_error_title')}</AlertTitle>
+          </Alert>
+        )}
+        {storageFallbackNotice && (
+          // Spec §11 "one-time muted notice": muted neutral tone with an
+          // informational icon — deliberately NOT the warning banner above.
+          <Alert tone="neutral">
+            <AlertTitle>{translate(lang, 'storage_fallback_notice')}</AlertTitle>
           </Alert>
         )}
         <header className="flex items-center justify-between">
