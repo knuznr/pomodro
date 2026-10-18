@@ -79,7 +79,7 @@ export function TaskSection({
         <Button type="submit" variant="secondary" size="lg">{t('add')}</Button>
       </form>
       {showError && (
-        <p role="status" className="text-xs text-rose-400">{t('add_error')}</p>
+        <p role="status" className="text-xs text-text-muted">{t('add_error')}</p>
       )}
       <p className="text-sm text-text-muted">
         {activeTitle ? t('focus_active', { title: activeTitle }) : t('focus_none')}

@@ -155,7 +155,7 @@ export const LockInput = forwardRef<HTMLInputElement, LockInputProps>(
             initial={{ opacity: 0, y: -2 }}
             animate={{ opacity: 1, y: 0 }}
             transition={motionTransitions.springSnappy}
-            className="text-xs text-rose-400 font-medium"
+            className="text-xs text-text-muted font-medium"
             role="alert"
           >
             {error}

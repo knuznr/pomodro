@@ -147,7 +147,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
       case 'warning':
         return <AlertTriangle className="w-4 h-4 text-amber-400" />;
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-rose-400" />;
+        return <AlertCircle className="w-4 h-4 text-[var(--text-secondary)]" />;
       case 'info':
         return <Info className="w-4 h-4 text-sky-400" />;
       default:
