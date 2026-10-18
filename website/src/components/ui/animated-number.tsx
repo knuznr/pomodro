@@ -11,6 +11,8 @@ export interface AnimatedNumberProps {
   decimals?: number;
   /** Prepend text or currency symbol (e.g. "$", "+") */
   prefix?: string;
+  /** Zero-pad the integer part to this many digits (e.g. 5 → "05" for clock displays). */
+  pad?: number;
   /** Append text (e.g. "%", " users", "ms") */
   suffix?: string;
   /** Spring physics stiffness */
@@ -73,6 +75,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   value,
   decimals = 0,
   prefix = '',
+  pad,
   suffix = '',
   stiffness = 170,
   damping = 22,
@@ -92,7 +95,8 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     }
 
     const fixed = Math.abs(val).toFixed(decimals);
-    const [intPart, decPart] = fixed.split('.');
+    const [rawIntPart, decPart] = fixed.split('.');
+    const intPart = pad !== undefined ? rawIntPart.padStart(pad, '0') : rawIntPart;
 
     let formattedInt = intPart;
     if (useGrouping) {
