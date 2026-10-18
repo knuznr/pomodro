@@ -109,6 +109,25 @@ describe('TaskSection', () => {
     expect(screen.getByLabelText('Close notification')).toBeInTheDocument();
     // 'Geri al' appears both in the action row and inside the toast.
     expect(screen.getAllByRole('button', { name: 'Geri al' }).length).toBeGreaterThanOrEqual(2);
+    // Single toast anchor (final review Finding 6): bottom-right, matching
+    // the phase-end toast once both sit in the same corner.
+    expect(screen.getByText('Görev silindi').closest('div.fixed')).toHaveClass(
+      'bottom-5',
+      'right-5',
+    );
+  });
+
+  it('delete with no selection is a silent no-op (desktop parity, no false toast)', async () => {
+    // Desktop parity (app.py delete): with nothing selected the action does
+    // nothing — no handler call and no "Görev silindi" toast claiming a
+    // deletion that never happened. The guard lives here because the toast
+    // state does; App's onDelete already no-ops on null selection.
+    const user = userEvent.setup();
+    const { handlers } = renderSection({ selectedId: null });
+    await user.click(screen.getByRole('button', { name: 'Sil' }));
+    expect(handlers.onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByText('Görev silindi')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Close notification')).not.toBeInTheDocument();
   });
 
   it('the undo toast button calls onUndo', async () => {

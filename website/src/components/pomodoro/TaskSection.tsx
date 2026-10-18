@@ -47,6 +47,11 @@ export function TaskSection({
   };
 
   const handleDelete = () => {
+    // Desktop parity (app.py delete): with no selection the delete silently
+    // no-ops — no handler call and no "Görev silindi" toast claiming a
+    // deletion that never happened. App's own handleDelete already returns
+    // early on a null selection; this guard keeps the TOAST honest too.
+    if (selectedId === null) return;
     onDelete();
     setUndoOpen(true);
   };

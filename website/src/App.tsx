@@ -63,6 +63,8 @@ const TOAST_MS = 5000;
  * Session-end toast; `kind` is the phase that just ENDED — desktop wording
  * parity (app.py show_notification): a work session that ended announces
  * "Çalışma tamamlandı" (work strings), a finished break announces "Mola bitti".
+ * `position` joins the undo toast's bottom-right anchor so both in-app toasts
+ * share one screen corner (final review Finding 6).
  */
 function PhaseToast({ kind, onDismiss }: { kind: 'work' | 'break' | null; onDismiss: () => void }) {
   const { t } = useI18n();
@@ -72,6 +74,7 @@ function PhaseToast({ kind, onDismiss }: { kind: 'work' | 'break' | null; onDism
       onDismiss={onDismiss}
       duration={TOAST_MS}
       variant={kind === 'break' ? 'info' : 'success'}
+      position="bottom-right"
       title={kind === 'break' ? t('toast_break_title') : t('toast_work_title')}
       description={kind === 'break' ? t('toast_break_description') : t('toast_work_description')}
     />

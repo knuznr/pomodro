@@ -262,6 +262,13 @@ describe('PomodoroApp', () => {
       // The work-end toast shows the real desktop copy (i18n toast_work_*).
       expect(screen.getByText('Çalışma tamamlandı')).toBeInTheDocument();
       expect(screen.getByText('Biraz dinlenme zamanı.')).toBeInTheDocument();
+      // Single toast anchor (final review Finding 6): the phase toast joins
+      // the undo toast at bottom-right instead of velocity's bottom-center
+      // default, so both in-app toasts share one screen corner.
+      expect(screen.getByText('Çalışma tamamlandı').closest('div.fixed')).toHaveClass(
+        'bottom-5',
+        'right-5',
+      );
 
       // The engine advanced TO the short break and stays stopped: Start is
       // re-enabled and Pause is disabled — the timer did NOT auto-start.
