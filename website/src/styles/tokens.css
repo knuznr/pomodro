@@ -29,6 +29,8 @@
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
   --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
