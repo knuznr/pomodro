@@ -43,6 +43,12 @@ describe('TaskSection', () => {
     expect(screen.getByText('• Yaz')).toBeInTheDocument();
     const selectedRow = screen.getByRole('option', { selected: true });
     expect(selectedRow.textContent).toContain('Oku');
+    // Accessible names: desktop parity — app.py sets task_list's name to
+    // 'Tamamlanmamış görevler'; the input is named by the question above it.
+    expect(screen.getByRole('listbox')).toHaveAccessibleName('Tamamlanmamış görevler');
+    expect(screen.getByPlaceholderText("Yeni görev yaz ve Enter'a bas")).toHaveAccessibleName(
+      'Şimdi neye odaklanıyorsun?',
+    );
   });
 
   it('shows the no-focus line when there is no active task', () => {
@@ -93,7 +99,7 @@ describe('TaskSection', () => {
     expect(handlers.onDelete).not.toHaveBeenCalled();
   });
 
-  it('deleting the selection opens the undo toast with a 5s countdown', async () => {
+  it('deleting the selection opens the undo toast with undo and close controls', async () => {
     const user = userEvent.setup();
     const { handlers } = renderSection();
     await user.click(screen.getByRole('button', { name: 'Sil' }));
@@ -105,7 +111,7 @@ describe('TaskSection', () => {
     expect(screen.getAllByRole('button', { name: 'Geri al' }).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('the undo toast button calls onUndo and hides the toast', async () => {
+  it('the undo toast button calls onUndo', async () => {
     const user = userEvent.setup();
     const { handlers } = renderSection();
     await user.click(screen.getByRole('button', { name: 'Sil' }));

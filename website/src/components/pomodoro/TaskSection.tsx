@@ -63,6 +63,7 @@ export function TaskSection({
       >
         <LockInput
           className="flex-1"
+          aria-label={t('task_question')}
           placeholder={t('task_placeholder')}
           value={title}
           onChange={(event) => {
@@ -78,7 +79,7 @@ export function TaskSection({
       <p className="text-sm text-text-muted">
         {activeTitle ? t('focus_active', { title: activeTitle }) : t('focus_none')}
       </p>
-      <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto" role="listbox" aria-label="tasks">
+      <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto" role="listbox" aria-label={t('tasks_list')}>
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const queued = queuedIds.includes(task.id);
