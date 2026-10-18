@@ -32,9 +32,11 @@ function intCoerce(value: unknown): number | null {
 
 /**
  * Defensive parser porting app.py load_state:
- *   for row in state.get("tasks", []):          # row keys EXACTLY the dataclass
- *     task = Task(**row)                        #   keys id/title/completed; then
- *     # type(task.id) is int and >= 1, title str, completed bool — else discard
+ *   for row in state.get("tasks", []):          # Task(**row): id/title required,
+ *     tasks[task.id] = task                     #   completed defaults to False,
+ *     # extra keys raise TypeError; type(task.id) is int and >= 1, title str,
+ *     # completed bool — else discard. Duplicate ids overwrite (dict semantics,
+ *     # last write wins).
  *   next_id   = max(int(state.get("next_id", 1)), max(tasks, default=0) + 1)
  *   durations = state.get("durations", [25, 5, 15])  # len 3, STRICT ints
  *   completed = max(0, int(state.get("completed", 0)))
@@ -47,13 +49,17 @@ function intCoerce(value: unknown): number | null {
  * and uses defaults).
  */
 export function parseStoredState(value: unknown): StoredState | null {
-  if (typeof value !== 'object' || value === null) {
+  // Desktop: state.get("tasks") — a list has no .get → AttributeError → the
+  // whole record falls back to defaults, so arrays must be fatal here too.
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return null;
   }
   const raw = value as Record<string, unknown>;
 
   let maxTaskId = 0;
-  const tasks: StoredState['tasks'] = [];
+  // tasks[task.id] = task keeps Python dict semantics: a later row with the
+  // same id overwrites the earlier one while preserving insertion order.
+  const taskById = new Map<number, StoredState['tasks'][number]>();
   if (raw.tasks !== undefined) {
     if (!Array.isArray(raw.tasks)) {
       return null;
@@ -63,22 +69,24 @@ export function parseStoredState(value: unknown): StoredState | null {
         return null;
       }
       const task = row as Record<string, unknown>;
-      // Task(**row): missing or extra keys raise TypeError → discard.
+      // Task(**row): id/title are required and extra keys raise TypeError;
+      // completed defaults to False when the key is absent.
       if (
-        Object.keys(task).length !== 3 ||
         !('id' in task) ||
         !('title' in task) ||
-        !('completed' in task)
+        Object.keys(task).some((key) => key !== 'id' && key !== 'title' && key !== 'completed')
       ) {
         return null;
       }
       if (!isInteger(task.id) || task.id < 1) return null;
       if (typeof task.title !== 'string') return null;
-      if (typeof task.completed !== 'boolean') return null;
+      const completed = task.completed === undefined ? false : task.completed;
+      if (typeof completed !== 'boolean') return null;
       maxTaskId = Math.max(maxTaskId, task.id);
-      tasks.push({ id: task.id, title: task.title, completed: task.completed });
+      taskById.set(task.id, { id: task.id, title: task.title, completed });
     }
   }
+  const tasks = Array.from(taskById.values());
 
   const nextIdCoerced = raw.next_id === undefined ? 1 : intCoerce(raw.next_id);
   if (nextIdCoerced === null) {

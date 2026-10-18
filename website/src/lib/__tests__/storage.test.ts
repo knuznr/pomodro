@@ -50,6 +50,23 @@ describe('parseStoredState', () => {
     expect(parsed?.completed).toBe(0);
   });
 
+  it('defaults a missing completed to false like Task(**row)', () => {
+    const parsed = parseStoredState({ ...validState, tasks: [{ id: 1, title: 'x' }] });
+    expect(parsed?.tasks).toEqual([{ id: 1, title: 'x', completed: false }]);
+  });
+
+  it('dedupes repeated task ids desktop-dict style (last write wins)', () => {
+    const parsed = parseStoredState({
+      ...validState,
+      tasks: [
+        { id: 1, title: 'A', completed: false },
+        { id: 1, title: 'B', completed: false },
+      ],
+    });
+    expect(parsed?.tasks).toEqual([{ id: 1, title: 'B', completed: false }]);
+    expect(parsed?.next_id).toBe(2);
+  });
+
   it('coerces next_id with Python int() semantics', () => {
     expect(parseStoredState({ ...validState, next_id: ' 2 ' })?.next_id).toBe(2);
     expect(parseStoredState({ ...validState, next_id: '2' })?.next_id).toBe(2);
@@ -80,10 +97,12 @@ describe('parseStoredState', () => {
 
   it.each([
     ['null input', null],
+    ['array input', [1, 2, 3]],
     ['string input', 'nope'],
     ['tasks not an array', { ...validState, tasks: {} }],
     ['task row not an object', { ...validState, tasks: ['x'] }],
     ['task row missing title', { ...validState, tasks: [{ id: 1, completed: false }] }],
+    ['task row missing id', { ...validState, tasks: [{ title: 'x' }] }],
     [
       'task row with extra key',
       { ...validState, tasks: [{ id: 1, title: 'x', completed: false, note: 'ek' }] },
@@ -98,14 +117,18 @@ describe('parseStoredState', () => {
     ['next_id float string', { ...validState, next_id: '2.5' }],
     ['next_id empty string', { ...validState, next_id: '' }],
     ['next_id null', { ...validState, next_id: null }],
+    ['completed string 2.5', { ...validState, completed: '2.5' }],
+    ['completed null', { ...validState, completed: null }],
     ['durations wrong length', { ...validState, durations: [25, 5] }],
     ['durations non-numeric', { ...validState, durations: [25, 'x', 15] }],
+    ['durations with floats', { ...validState, durations: [1.5, 2, 3] }],
     ['durations not an array', { ...validState, durations: 'bad' }],
     ['queue not an array', { ...validState, queue: 7 }],
     ['queue with string entries', { ...validState, queue: [1, '2'] }],
     ['queue with float entries', { ...validState, queue: [1.5] }],
     ['active string', { ...validState, active: '1' }],
     ['active float', { ...validState, active: 1.5 }],
+    ['active boolean', { ...validState, active: false }],
   ])('rejects: %s', (_label, value) => {
     expect(parseStoredState(value)).toBeNull();
   });
