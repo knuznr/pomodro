@@ -23,6 +23,20 @@ describe('PomodoroApp', () => {
     expect(screen.getByText('Şimdi neye odaklanıyorsun?')).toBeInTheDocument();
   });
 
+  it('falls back to the browser language when nothing is stored', async () => {
+    // Runbook item 1: the default language comes from the stored `lang` OR
+    // the browser. jsdom reports en-US, so with no stored record the UI
+    // hydrates to English instead of the hardcoded Turkish useState.
+    const storage = {
+      ...makeStorageStub(),
+      loadLang: vi.fn().mockResolvedValue(null),
+    } satisfies PomodoroStorage & Record<string, Mock>;
+    render(<PomodoroApp storage={storage} />);
+    expect(await screen.findByRole('button', { name: 'Start' })).toBeInTheDocument();
+    expect(screen.getByText('Focus time')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Type a new task and press Enter')).toBeInTheDocument();
+  });
+
   it('walks add → queue → next with persistence, then delete with undo', async () => {
     const user = userEvent.setup();
     const storage = makeStorageStub();
@@ -86,7 +100,9 @@ describe('PomodoroApp', () => {
         next_id: 4,
         queue: [2],
         active: 1,
-        durations: [25, 5, 15],
+        // Non-default durations: reload must show 30:00 on the clock
+        // (runbook item 9), not the 25:00 defaults the app would bet on.
+        durations: [30, 5, 15],
         day: '2026-10-18',
         completed: 3,
       } satisfies StoredState),
@@ -108,6 +124,8 @@ describe('PomodoroApp', () => {
       expect(screen.getByText('Completed today: 3')).toBeInTheDocument();
       expect(await screen.findByRole('button', { name: 'Start' })).toBeInTheDocument();
       expect(screen.queryByText('Bitti')).not.toBeInTheDocument(); // completed tasks stay hidden
+      // The saved 30-minute work duration reaches the padded clock (30:00).
+      expect(document.querySelector('[aria-label="30"]')).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -154,6 +172,32 @@ describe('PomodoroApp', () => {
     await user.type(screen.getByLabelText('Çalışma'), '30');
     expect(document.querySelector('[aria-label="30"]')).toBeInTheDocument();
     expect(storage.save).toHaveBeenCalled();
+  });
+
+  it('completing the selected task removes its row (desktop: completed never shows)', async () => {
+    const user = userEvent.setup();
+    const storage = makeStorageStub();
+    render(<PomodoroApp storage={storage} />);
+    await screen.findByRole('button', { name: 'Başlat' });
+
+    const input = screen.getByPlaceholderText("Yeni görev yaz ve Enter'a bas");
+    await user.type(input, 'Bitirilecek');
+    await user.click(screen.getByRole('button', { name: 'Ekle' }));
+    expect(await screen.findByText('Bitirilecek')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Bitirilecek'));
+    await user.click(screen.getByRole('button', { name: 'Tamamla' }));
+
+    // refresh() drops completed rows immediately — desktop parity: completed
+    // tasks never render in the pending list.
+    await waitFor(() =>
+      expect(screen.queryByText('Bitirilecek')).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText('Odaklanılacak görev seçilmedi')).toBeInTheDocument();
+    // The completed flag persists too (desktop keeps the record, hidden).
+    const lastSave = (storage.save as Mock).mock.calls.at(-1)?.[0] as StoredState;
+    const savedTask = lastSave.tasks.find((task) => task.title === 'Bitirilecek');
+    expect(savedTask?.completed).toBe(true);
   });
 
   it('ends a work session on the clock: work toast, short break, one save', async () => {
