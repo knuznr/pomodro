@@ -11,8 +11,40 @@ const isInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value);
 
 /**
- * Defensive parser mirroring app.py load_state: any violation discards the
- * whole record (caller shows the warning banner and uses defaults).
+ * Python int() semantics over JSON-ish values: digit strings (± sign,
+ * surrounding whitespace OK), float truncation toward zero, booleans map to
+ * 1/0. Non-finite numbers and anything else return null (the desktop's int()
+ * would raise and discard the whole record).
+ * Documented deviations from Python: underscores inside digit strings are
+ * rejected, oversized digit strings lose float precision.
+ */
+function intCoerce(value: unknown): number | null {
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return /^[+-]?\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : null;
+  }
+  return null;
+}
+
+/**
+ * Defensive parser porting app.py load_state:
+ *   for row in state.get("tasks", []):          # row keys EXACTLY the dataclass
+ *     task = Task(**row)                        #   keys id/title/completed; then
+ *     # type(task.id) is int and >= 1, title str, completed bool — else discard
+ *   next_id   = max(int(state.get("next_id", 1)), max(tasks, default=0) + 1)
+ *   durations = state.get("durations", [25, 5, 15])  # len 3, STRICT ints
+ *   completed = max(0, int(state.get("completed", 0)))
+ *   queue     = state.get("queue", [])          # list of STRICT ints
+ *   active    = state.get("active")             # STRICT int or null
+ *   day       : never validated — `completed if day == today else 0` just
+ *     zeroes the counter while the tasks are kept.
+ * Missing keys fall back to the desktop defaults instead of being fatal;
+ * any violation discards the whole record (caller shows the warning banner
+ * and uses defaults).
  */
 export function parseStoredState(value: unknown): StoredState | null {
   if (typeof value !== 'object' || value === null) {
@@ -20,53 +52,79 @@ export function parseStoredState(value: unknown): StoredState | null {
   }
   const raw = value as Record<string, unknown>;
 
-  if (!Array.isArray(raw.tasks)) {
-    return null;
-  }
-  for (const row of raw.tasks) {
-    if (typeof row !== 'object' || row === null) {
+  let maxTaskId = 0;
+  const tasks: StoredState['tasks'] = [];
+  if (raw.tasks !== undefined) {
+    if (!Array.isArray(raw.tasks)) {
       return null;
     }
-    const task = row as Record<string, unknown>;
-    if (!isInteger(task.id) || task.id < 1) return null;
-    if (typeof task.title !== 'string') return null;
-    if (typeof task.completed !== 'boolean') return null;
+    for (const row of raw.tasks) {
+      if (typeof row !== 'object' || row === null) {
+        return null;
+      }
+      const task = row as Record<string, unknown>;
+      // Task(**row): missing or extra keys raise TypeError → discard.
+      if (
+        Object.keys(task).length !== 3 ||
+        !('id' in task) ||
+        !('title' in task) ||
+        !('completed' in task)
+      ) {
+        return null;
+      }
+      if (!isInteger(task.id) || task.id < 1) return null;
+      if (typeof task.title !== 'string') return null;
+      if (typeof task.completed !== 'boolean') return null;
+      maxTaskId = Math.max(maxTaskId, task.id);
+      tasks.push({ id: task.id, title: task.title, completed: task.completed });
+    }
   }
 
-  if (!isInteger(raw.next_id) || raw.next_id < 1) {
-    return null;
-  }
-  if (!Array.isArray(raw.durations) || raw.durations.length !== 3) {
-    return null;
-  }
-  for (const duration of raw.durations) {
-    if (!isInteger(duration)) return null;
-  }
-  if (!isInteger(raw.completed) || raw.completed < 0) {
-    return null;
-  }
-  if (!Array.isArray(raw.queue) || raw.queue.some((id) => !isInteger(id))) {
-    return null;
-  }
-  if (raw.active !== null && !isInteger(raw.active)) {
-    return null;
-  }
-  if (typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day)) {
+  const nextIdCoerced = raw.next_id === undefined ? 1 : intCoerce(raw.next_id);
+  if (nextIdCoerced === null) {
     return null;
   }
 
-  const maxTaskId = (raw.tasks as Array<Record<string, unknown>>).reduce(
-    (max, task) => Math.max(max, task.id as number),
-    0,
-  );
+  let durations: [number, number, number] = [25, 5, 15];
+  if (raw.durations !== undefined) {
+    if (!Array.isArray(raw.durations) || raw.durations.length !== 3) {
+      return null;
+    }
+    for (const duration of raw.durations) {
+      if (!isInteger(duration)) return null;
+    }
+    durations = raw.durations as [number, number, number];
+  }
+
+  const completedCoerced = raw.completed === undefined ? 0 : intCoerce(raw.completed);
+  if (completedCoerced === null) {
+    return null;
+  }
+
+  if (
+    raw.queue !== undefined &&
+    (!Array.isArray(raw.queue) || raw.queue.some((id) => !isInteger(id)))
+  ) {
+    return null;
+  }
+
+  const active = raw.active === undefined ? null : raw.active;
+  if (active !== null && !isInteger(active)) {
+    return null;
+  }
+
+  // The desktop never validates `day`; a stale/missing day merely resets the
+  // completed counter (day == today else 0) and the tasks survive.
+  const day = typeof raw.day === 'string' ? raw.day : '';
+
   return {
-    tasks: raw.tasks as StoredState['tasks'],
-    next_id: Math.max(raw.next_id, maxTaskId + 1),
-    queue: raw.queue as StoredState['queue'],
-    active: (raw.active ?? null) as StoredState['active'],
-    durations: raw.durations as StoredState['durations'],
-    day: raw.day,
-    completed: raw.completed,
+    tasks,
+    next_id: Math.max(nextIdCoerced, maxTaskId + 1),
+    queue: (raw.queue ?? []) as StoredState['queue'],
+    active: active as StoredState['active'],
+    durations,
+    day,
+    completed: Math.max(0, completedCoerced),
   };
 }
 
