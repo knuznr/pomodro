@@ -72,6 +72,9 @@ export default function PomodoroApp({ storage = getDefaultStorage() }: PomodoroA
   const activeIdRef = useRef<number | null>(null);
   const storageRef = useRef<PomodoroStorage>(storage);
   const engineRef = useRef<TimerEngine | null>(null);
+  // Id of the pending phase-end toast belt timeout; it is re-armed at every
+  // phase end and must never outlive the unmounted App.
+  const toastTimerRef = useRef<number | null>(null);
 
   const [engine, setEngine] = useState<TimerEngine | null>(null);
   const [snap, setSnap] = useState<TimerSnapshot | null>(null);
@@ -105,7 +108,13 @@ export default function PomodoroApp({ storage = getDefaultStorage() }: PomodoroA
       day: engineInstance.currentDay(),
       completed: engineInstance.snapshot().completedToday,
     };
-    activeStorage.save(state).catch(() => setSaveWarning(true));
+    // Desktop parity (app.py save_state with rollover_day relabeling the
+    // footer before the status check): a SUCCESSFUL save clears an earlier
+    // disk warning and a failure re-raises it. The load-error banner
+    // (storageError) is independent — only the user's dismiss clears it.
+    activeStorage.save(state)
+      .then(() => setSaveWarning(false))
+      .catch(() => setSaveWarning(true));
   }, []);
 
   const refresh = useCallback(() => {
@@ -136,7 +145,10 @@ export default function PomodoroApp({ storage = getDefaultStorage() }: PomodoroA
       // auto-start); we only celebrate + persist, desktop save_state parity.
       const kind: 'work' | 'break' = nextPhase === 'work' ? 'break' : 'work';
       setPhaseToastKind(kind);
-      window.setTimeout(() => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      toastTimerRef.current = window.setTimeout(() => {
         setPhaseToastKind((current) => (current === kind ? null : current));
       }, TOAST_MS + 500);
       persist();
@@ -229,6 +241,16 @@ export default function PomodoroApp({ storage = getDefaultStorage() }: PomodoroA
     }, TICK_MS);
     return () => window.clearInterval(id);
   }, [engine]);
+
+  /** Belt timeout opened at phase end does not survive the unmounted App. */
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    },
+    [],
+  );
 
   /** Save-on-hide safety net (desktop saves on window close). */
   useEffect(() => {
