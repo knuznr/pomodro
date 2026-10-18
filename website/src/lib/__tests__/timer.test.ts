@@ -202,6 +202,23 @@ describe('TimerEngine', () => {
     engine.rolloverDay();
     expect(engine.snapshot().completedToday).toBe(3);
   });
+
+  it('a work session finishing across local midnight counts into the new day', () => {
+    const { engine, setNow } = makeHarness(DURATIONS, {
+      completedToday: 3,
+      day: '2026-10-17',
+      today: () => '2026-10-18',
+    });
+    engine.start();
+    setNow(25 * MINUTE);
+    engine.tick();
+    expect(engine.snapshot()).toMatchObject({
+      phase: 'short',
+      pomodoroCount: 1,
+      completedToday: 1,
+    });
+    expect(engine.currentDay()).toBe('2026-10-18');
+  });
 });
 
 describe('localIsoDate', () => {

@@ -139,6 +139,7 @@ export class TimerEngine {
   }
 
   private finishPhase(): void {
+    this.rolloverDay();
     this.deadline = null;
     this.paused = false;
     let next: Phase;
