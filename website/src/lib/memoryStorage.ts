@@ -5,6 +5,7 @@ import type { Lang, StoredState } from './types';
 export function createMemoryStorage(): PomodoroStorage {
   let state: StoredState | null = null;
   let lang: Lang | null = null;
+  let prefs: unknown = null;
   return {
     async load() {
       return state;
@@ -17,6 +18,12 @@ export function createMemoryStorage(): PomodoroStorage {
     },
     async saveLang(next) {
       lang = next;
+    },
+    async loadPrefs() {
+      return prefs;
+    },
+    async savePrefs(next) {
+      prefs = next;
     },
   };
 }

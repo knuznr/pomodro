@@ -103,6 +103,44 @@ export class TimerEngine {
     this.totalSeconds = this.remaining;
   }
 
+  /** Jump to another phase while idle (no-op when running); keeps the cycle count. */
+  selectPhase(phase: Phase): void {
+    if (this.deadline !== null) {
+      return;
+    }
+    this.selectPhaseUnchecked(phase);
+  }
+
+  /**
+   * Skip to the next phase without crediting a work session. A running clock
+   * keeps running in the new phase; an idle one stays idle.
+   */
+  skip(): void {
+    const wasRunning = this.deadline !== null;
+    this.selectPhaseUnchecked(this.phase === 'work' ? 'short' : 'work');
+    if (wasRunning) this.start();
+  }
+
+  /** Add time to the current phase (running or idle); the progress bar follows. */
+  extend(minutes: number): void {
+    const seconds = toSeconds(minutes);
+    this.totalSeconds += seconds;
+    if (this.deadline !== null) {
+      this.deadline += seconds * 1000;
+      this.remaining += seconds;
+    } else {
+      this.remaining += seconds;
+    }
+  }
+
+  private selectPhaseUnchecked(phase: Phase): void {
+    this.deadline = null;
+    this.paused = false;
+    this.phase = phase;
+    this.remaining = toSeconds(this.durations[phase]);
+    this.totalSeconds = this.remaining;
+  }
+
   tick(): void {
     if (this.deadline === null) {
       return;
