@@ -1,3 +1,4 @@
+import type { Prefs } from './prefs';
 import type { Durations, Lang, StoredState } from './types';
 
 export interface PomodoroStorage {
@@ -5,6 +6,9 @@ export interface PomodoroStorage {
   save(state: StoredState): Promise<void>;
   loadLang(): Promise<Lang | null>;
   saveLang(lang: Lang): Promise<void>;
+  /** Web-only extras (theme, sound, goal, history); optional so stubs can skip them. */
+  loadPrefs?(): Promise<unknown>;
+  savePrefs?(prefs: Prefs): Promise<void>;
 }
 
 const isInteger = (value: unknown): value is number =>

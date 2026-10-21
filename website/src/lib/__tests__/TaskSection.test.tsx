@@ -139,4 +139,15 @@ describe('TaskSection', () => {
     await user.click(within(toastActions).getByRole('button', { name: 'Geri al' }));
     expect(handlers.onUndo).toHaveBeenCalledTimes(1);
   });
+
+  it('asks whether the focus task is done and reports the answer', async () => {
+    const user = userEvent.setup();
+    const onFocusDone = vi.fn();
+    renderSection({ askFocusDone: true, onFocusDone });
+    expect(screen.getByText('Görev bitti mi?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Bitti, sıradaki' }));
+    expect(onFocusDone).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole('button', { name: 'Henüz değil' }));
+    expect(onFocusDone).toHaveBeenLastCalledWith(false);
+  });
 });

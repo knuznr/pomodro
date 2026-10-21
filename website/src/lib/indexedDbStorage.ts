@@ -64,5 +64,11 @@ export function createIndexedDbStorage(factory: IDBFactory = indexedDB): Pomodor
     async saveLang(lang: Lang): Promise<void> {
       await write('lang', lang);
     },
+    async loadPrefs() {
+      return read<unknown>('prefs');
+    },
+    async savePrefs(prefs) {
+      await write('prefs', prefs);
+    },
   };
 }

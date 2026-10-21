@@ -47,7 +47,7 @@ export const FormLabel = forwardRef<HTMLLabelElement, FormLabelProps>(
     <label
       ref={ref}
       className={cn(
-        'block text-xs font-medium text-[#FAFAFA] select-none tracking-tight',
+        'block text-xs font-medium text-[var(--text-primary)] select-none tracking-tight',
         className
       )}
       {...props}
@@ -70,7 +70,7 @@ export const FormDescription = forwardRef<HTMLParagraphElement, React.HTMLAttrib
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-[11px] text-[#6B6B6B] leading-relaxed', className)}
+      className={cn('text-[11px] text-[var(--text-muted)] leading-relaxed', className)}
       {...props}
     />
   )
@@ -150,7 +150,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="relative w-full flex items-center">
         {leftIcon && (
-          <div className="absolute left-3 text-[#525252] pointer-events-none flex items-center justify-center">
+          <div className="absolute left-3 text-[var(--text-muted)] pointer-events-none flex items-center justify-center">
             {leftIcon}
           </div>
         )}
@@ -160,13 +160,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           type={computedType}
           disabled={disabled}
           className={cn(
-            'w-full h-10 px-3.5 text-xs text-[#FAFAFA] placeholder:text-[#6B6B6B] bg-[#141414] rounded-lg border transition-all duration-150',
-            'border-[#1F1F1F] hover:border-[#4A4A4A]',
-            'focus:bg-[#141414] focus:border-[#4A4A4A] focus:outline-none focus-ring',
+            'w-full h-10 px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] bg-[var(--surface-raised)] rounded-lg border transition-all duration-150',
+            'border-[var(--border)] hover:border-[var(--border-hover)]',
+            'focus:bg-[var(--surface-raised)] focus:border-[var(--border-hover)] focus:outline-none focus-ring',
             leftIcon && 'pl-9',
             (rightIcon || (isPassword && showPasswordToggle)) && 'pr-9',
             error && 'border-rose-500/50 focus:border-rose-500',
-            disabled && 'opacity-30 cursor-not-allowed bg-[#0E0E0E]',
+            disabled && 'opacity-30 cursor-not-allowed bg-[var(--surface)]',
             className
           )}
           {...props}
@@ -178,7 +178,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             onClick={() => setShowPassword(!showPassword)}
             tabIndex={-1}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
-            className="absolute right-3 text-[#525252] hover:text-[#FAFAFA] transition-colors focus-ring rounded cursor-pointer"
+            className="absolute right-3 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-ring rounded cursor-pointer"
           >
             {showPassword ? (
               <EyeOff className="w-3.5 h-3.5" />
@@ -188,7 +188,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </button>
         ) : (
           rightIcon && (
-            <div className="absolute right-3 text-[#525252] pointer-events-none flex items-center justify-center">
+            <div className="absolute right-3 text-[var(--text-muted)] pointer-events-none flex items-center justify-center">
               {rightIcon}
             </div>
           )
@@ -214,11 +214,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         ref={ref}
         disabled={disabled}
         className={cn(
-          'w-full min-h-[90px] p-3 text-xs text-[#FAFAFA] placeholder:text-[#6B6B6B] bg-[#141414] rounded-lg border transition-all duration-150 resize-y',
-          'border-[#1F1F1F] hover:border-[#4A4A4A]',
-          'focus:bg-[#141414] focus:border-[#4A4A4A] focus:outline-none focus-ring leading-relaxed',
+          'w-full min-h-[90px] p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] bg-[var(--surface-raised)] rounded-lg border transition-all duration-150 resize-y',
+          'border-[var(--border)] hover:border-[var(--border-hover)]',
+          'focus:bg-[var(--surface-raised)] focus:border-[var(--border-hover)] focus:outline-none focus-ring leading-relaxed',
           error && 'border-rose-500/50 focus:border-rose-500',
-          disabled && 'opacity-30 cursor-not-allowed bg-[#0E0E0E]',
+          disabled && 'opacity-30 cursor-not-allowed bg-[var(--surface)]',
           className
         )}
         {...props}
@@ -251,11 +251,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           disabled={disabled}
           className={cn(
-            'w-full h-10 pl-3.5 pr-8 text-xs text-[#FAFAFA] bg-[#141414] rounded-lg border appearance-none transition-all duration-150 cursor-pointer',
-            'border-[#1F1F1F] hover:border-[#4A4A4A]',
-            'focus:bg-[#141414] focus:border-[#4A4A4A] focus:outline-none focus-ring',
+            'w-full h-10 pl-3.5 pr-8 text-xs text-[var(--text-primary)] bg-[var(--surface-raised)] rounded-lg border appearance-none transition-all duration-150 cursor-pointer',
+            'border-[var(--border)] hover:border-[var(--border-hover)]',
+            'focus:bg-[var(--surface-raised)] focus:border-[var(--border-hover)] focus:outline-none focus-ring',
             error && 'border-rose-500/50 focus:border-rose-500',
-            disabled && 'opacity-30 cursor-not-allowed bg-[#0E0E0E]',
+            disabled && 'opacity-30 cursor-not-allowed bg-[var(--surface)]',
             className
           )}
           {...props}
@@ -266,14 +266,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                   key={opt.value}
                   value={opt.value}
                   disabled={opt.disabled}
-                  className="bg-[#141414] text-[#FAFAFA]"
+                  className="bg-[var(--surface-raised)] text-[var(--text-primary)]"
                 >
                   {opt.label}
                 </option>
               ))
             : children}
         </select>
-        <div className="absolute right-3 text-[#525252] pointer-events-none flex items-center justify-center">
+        <div className="absolute right-3 text-[var(--text-muted)] pointer-events-none flex items-center justify-center">
           <ChevronDown className="w-3.5 h-3.5" />
         </div>
       </div>
@@ -334,8 +334,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             className={cn(
               'w-4 h-4 rounded-[4px] border flex items-center justify-center transition-all duration-150 cursor-pointer focus-ring',
               currentChecked
-                ? 'bg-[#FAFAFA] border-[#FAFAFA] text-[#050505]'
-                : 'bg-[#141414] border-[#1F1F1F] hover:border-[#4A4A4A]',
+                ? 'bg-[var(--text-primary)] border-[var(--text-primary)] text-[var(--bg)]'
+                : 'bg-[var(--surface-raised)] border-[var(--border)] hover:border-[var(--border-hover)]',
               disabled && 'cursor-not-allowed'
             )}
           >
@@ -355,12 +355,12 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         {(label || description) && (
           <label htmlFor={inputId} className="cursor-pointer text-left">
             {label && (
-              <div className="text-xs font-medium text-[#FAFAFA] leading-tight">
+              <div className="text-xs font-medium text-[var(--text-primary)] leading-tight">
                 {label}
               </div>
             )}
             {description && (
-              <div className="text-[11px] text-[#6B6B6B] mt-0.5 leading-relaxed">
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
                 {description}
               </div>
             )}
@@ -478,15 +478,15 @@ export const RadioGroupItem: React.FC<RadioGroupItemProps> = ({
           className={cn(
             'w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-150 cursor-pointer focus-ring',
             checked
-              ? 'border-[#FAFAFA] bg-[#141414]'
-              : 'border-[#1F1F1F] bg-[#141414] hover:border-[#4A4A4A]',
+              ? 'border-[var(--text-primary)] bg-[var(--surface-raised)]'
+              : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-[var(--border-hover)]',
             disabled && 'cursor-not-allowed'
           )}
         >
           {checked && (
             <motion.div
               layoutId={`radio-dot-${name}`}
-              className="w-2 h-2 rounded-full bg-[#FAFAFA]"
+              className="w-2 h-2 rounded-full bg-[var(--text-primary)]"
               transition={motionTransitions.springSnappy}
             />
           )}
@@ -496,12 +496,12 @@ export const RadioGroupItem: React.FC<RadioGroupItemProps> = ({
       {(label || description) && (
         <label htmlFor={id} className="cursor-pointer text-left">
           {label && (
-            <div className="text-xs font-medium text-[#FAFAFA] leading-tight">
+            <div className="text-xs font-medium text-[var(--text-primary)] leading-tight">
               {label}
             </div>
           )}
           {description && (
-            <div className="text-[11px] text-[#6B6B6B] mt-0.5 leading-relaxed">
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
               {description}
             </div>
           )}
@@ -554,12 +554,12 @@ export const Switch: React.FC<SwitchProps> = ({
       {(label || description) && (
         <div className="text-left cursor-pointer" onClick={handleToggle}>
           {label && (
-            <div className="text-xs font-medium text-[#FAFAFA] leading-tight">
+            <div className="text-xs font-medium text-[var(--text-primary)] leading-tight">
               {label}
             </div>
           )}
           {description && (
-            <div className="text-[11px] text-[#6B6B6B] mt-0.5 leading-relaxed">
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
               {description}
             </div>
           )}
@@ -575,8 +575,8 @@ export const Switch: React.FC<SwitchProps> = ({
         className={cn(
           'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus-ring',
           current
-            ? 'bg-[#FAFAFA] border-[#FAFAFA]'
-            : 'bg-[#141414] border-[#1F1F1F]',
+            ? 'bg-[var(--text-primary)] border-[var(--text-primary)]'
+            : 'bg-[var(--surface-raised)] border-[var(--border)]',
           disabled && 'cursor-not-allowed'
         )}
       >
@@ -585,7 +585,7 @@ export const Switch: React.FC<SwitchProps> = ({
           transition={motionTransitions.springSnappy}
           className={cn(
             'pointer-events-none block h-3.5 w-3.5 my-auto top-0 bottom-0 rounded-full shadow-xs',
-            current ? 'bg-[#050505]' : 'bg-[#6B6B6B]'
+            current ? 'bg-[var(--bg)]' : 'bg-[var(--text-muted)]'
           )}
         />
       </button>

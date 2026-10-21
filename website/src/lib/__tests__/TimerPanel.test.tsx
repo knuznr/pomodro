@@ -20,13 +20,13 @@ describe('TimerPanel', () => {
     expect(container.textContent).toContain('Oturum 0/4');
   });
 
-  it('drains the progress bar from the top', () => {
+  it('drains the progress ring from full', () => {
     const { container } = renderTimer(
       <TimerPanel phase="short" timeLeft={150} pomodoroCount={1} progress={50} />,
     );
     expect(screen.getByText('Kısa mola zamanı')).toBeInTheDocument();
-    const fill = container.querySelector('[data-testid="progress"] > div') as HTMLElement;
-    expect(fill.style.width).toBe('50%');
+    const ring = container.querySelector('[data-testid="progress"]') as HTMLElement;
+    expect(ring.dataset.value).toBe('50');
     expect(container.textContent).toContain('Oturum 1/4');
   });
 
