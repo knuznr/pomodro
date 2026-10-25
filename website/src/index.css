@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
+@import './styles/portfolio.css';
+
+/* `dark:` follows the app theme switch, not the OS preference. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 html,
 body,
@@ -12,4 +16,15 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   margin: 0;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+/* Quiet ambient glow behind the app, EasyUI style. */
+body {
+  background-image: radial-gradient(60rem 28rem at 50% -8rem, var(--accent-glow), transparent 70%);
+  background-repeat: no-repeat;
 }

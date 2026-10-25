@@ -1,13 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { VelocityToast } from '@/components/ui/velocity-toast';
+import { PhaseTabs } from '@/components/pomodoro/PhaseTabs';
+import { PreferencesCard } from '@/components/pomodoro/PreferencesCard';
+import { StatsCard } from '@/components/pomodoro/StatsCard';
+import { SpotifyCard } from '@/components/pomodoro/SpotifyCard';
+import { ThemeToggle } from '@/components/pomodoro/ThemeToggle';
 import { ControlsRow } from '@/components/pomodoro/ControlsRow';
 import { LanguageToggle } from '@/components/pomodoro/LanguageToggle';
-import { SettingsRow } from '@/components/pomodoro/SettingsRow';
 import { StatsFooter } from '@/components/pomodoro/StatsFooter';
 import { TaskSection } from '@/components/pomodoro/TaskSection';
 import { TimerPanel } from '@/components/pomodoro/TimerPanel';
 import { ensureChime, playChime } from '@/lib/chime';
+import {
+  DEFAULT_PREFS,
+  parsePrefs,
+  shouldAutoStart,
+  siteTheme,
+  withHistory,
+  type Prefs,
+  type Sound,
+} from '@/lib/prefs';
 import { createIndexedDbStorage } from '@/lib/indexedDbStorage';
 import { createMemoryStorage } from '@/lib/memoryStorage';
 // Project rule: context APIs come from './i18n.tsx'; pure i18n helpers from './i18n'.
@@ -57,6 +70,14 @@ function getDefaultStorage(): DefaultStorageDecision {
 }
 
 const TICK_MS = 200;
+
+/** Keys that keep their own meaning while a form control has focus. */
+const isInteractive = (el: EventTarget | null) =>
+  el instanceof HTMLElement &&
+  el.closest('input, textarea, select, button, [role="switch"], [contenteditable]') !== null;
+
+const clock = (seconds: number) =>
+  `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 const TOAST_MS = 5000;
 
 /**
@@ -102,6 +123,8 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
   // Id of the pending phase-end toast belt timeout; it is re-armed at every
   // phase end and must never outlive the unmounted App.
   const toastTimerRef = useRef<number | null>(null);
+  const prefsRef = useRef<Prefs>(DEFAULT_PREFS);
+  const langRef = useRef<Lang>('tr');
 
   const [engine, setEngine] = useState<TimerEngine | null>(null);
   const [snap, setSnap] = useState<TimerSnapshot | null>(null);
@@ -114,6 +137,8 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
   const [queuedIds, setQueuedIds] = useState<number[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [durations, setDurationsState] = useState<Durations>(DEFAULT_DURATIONS);
+  const [prefs, setPrefsState] = useState<Prefs>(DEFAULT_PREFS);
+  const [askFocusDone, setAskFocusDone] = useState(false);
   const [phaseToastKind, setPhaseToastKind] = useState<'work' | 'break' | null>(null);
 
   /** Persist full state — same triggers as app.py save_state. */
@@ -127,11 +152,7 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
       next_id: storeRef.current.next_id,
       queue: [...queueRef.current.queue],
       active: activeIdRef.current,
-      durations: [
-        durationsRef.current.work,
-        durationsRef.current.short,
-        durationsRef.current.long,
-      ],
+      durations: [durationsRef.current.work, durationsRef.current.short, durationsRef.current.long],
       day: engineInstance.currentDay(),
       completed: engineInstance.snapshot().completedToday,
     };
@@ -139,7 +160,16 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
     // footer before the status check): a SUCCESSFUL save clears an earlier
     // disk warning and a failure re-raises it. The load-error banner
     // (storageError) is independent — only the user's dismiss clears it.
-    activeStorage.save(state)
+    // Web-only extras: today's count joins the rolling history.
+    const nextPrefs = {
+      ...prefsRef.current,
+      history: withHistory(prefsRef.current.history, state.day, state.completed),
+    };
+    prefsRef.current = nextPrefs;
+    setPrefsState(nextPrefs);
+    void activeStorage.savePrefs?.(nextPrefs)?.catch(() => setSaveWarning(true));
+    activeStorage
+      .save(state)
       .then(() => setSaveWarning(false))
       .catch(() => setSaveWarning(true));
   }, []);
@@ -166,12 +196,27 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
 
   const handlePhaseEnd = useCallback(
     (nextPhase: Phase) => {
-      playChime();
+      playChime(prefsRef.current.sound);
       // nextPhase is the phase the engine advanced TO — the toast announces
       // the one that just ENDED. The engine keeps the timer stopped (no
       // auto-start); we only celebrate + persist, desktop save_state parity.
       const kind: 'work' | 'break' = nextPhase === 'work' ? 'break' : 'work';
       setPhaseToastKind(kind);
+      // A finished work session with a focus task asks whether it is done.
+      if (kind === 'work' && activeIdRef.current !== null) setAskFocusDone(true);
+      // The engine leaves the clock stopped; the opt-in prefs start it again.
+      if (shouldAutoStart(prefsRef.current, nextPhase)) engineRef.current?.start();
+      if (
+        prefsRef.current.notifications &&
+        document.visibilityState === 'hidden' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted'
+      ) {
+        const key = kind === 'break' ? 'toast_break' : 'toast_work';
+        new Notification(translate(langRef.current, `${key}_title`), {
+          body: translate(langRef.current, `${key}_description`),
+        });
+      }
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current);
       }
@@ -213,6 +258,16 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
       } catch {
         // storage broken — keep the desktop default below
       }
+      let loadedPrefs = DEFAULT_PREFS;
+      try {
+        loadedPrefs = parsePrefs(await storage.loadPrefs?.());
+      } catch {
+        // extras are optional — defaults keep the app fully usable
+      }
+      // The portfolio owns the theme when it has one; only its explicit
+      // choice overrides the stored pomodoro pref.
+      const portfolioTheme = siteTheme();
+      if (portfolioTheme !== null) loadedPrefs = { ...loadedPrefs, theme: portfolioTheme };
       if (cancelled) return;
 
       const store = storeRef.current;
@@ -245,6 +300,9 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
       engineRef.current = engineInstance;
 
       // One batched commit: final language + engine + lists + banners.
+      prefsRef.current = loadedPrefs;
+      langRef.current = langValue;
+      setPrefsState(loadedPrefs);
       setLangState(langValue);
       setStorageError(loadError);
       setDurationsState(savedDurations);
@@ -289,12 +347,14 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
   }, [persist]);
 
   const handleLang = useCallback((next: Lang) => {
+    langRef.current = next;
     setLangState(next);
     void storageRef.current.saveLang(next).catch(() => setSaveWarning(true));
   }, []);
 
   const handleStart = useCallback(() => {
     ensureChime(); // inside the click gesture — autoplay policy
+    setAskFocusDone(false);
     engineRef.current?.start();
     if (engineRef.current) setSnap(engineRef.current.snapshot());
   }, []);
@@ -306,6 +366,38 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
 
   const handleReset = useCallback(() => {
     engineRef.current?.reset();
+    if (engineRef.current) setSnap(engineRef.current.snapshot());
+  }, []);
+
+  const handlePrefs = useCallback((patch: Partial<Prefs>) => {
+    const next = { ...prefsRef.current, ...patch };
+    prefsRef.current = next;
+    setPrefsState(next);
+    try {
+      localStorage.setItem('theme', next.theme);
+    } catch {
+      // storage may be missing or full — the pref still applies this session
+    }
+    void storageRef.current.savePrefs?.(next)?.catch(() => setSaveWarning(true));
+  }, []);
+
+  const handlePreview = useCallback((sound: Sound) => {
+    ensureChime(); // inside the change/click gesture — autoplay policy
+    playChime(sound);
+  }, []);
+
+  const handleSkip = useCallback(() => {
+    engineRef.current?.skip();
+    if (engineRef.current) setSnap(engineRef.current.snapshot());
+  }, []);
+
+  const handleExtend = useCallback((minutes: number) => {
+    engineRef.current?.extend(minutes);
+    if (engineRef.current) setSnap(engineRef.current.snapshot());
+  }, []);
+
+  const handleSelectPhase = useCallback((phase: Phase) => {
+    engineRef.current?.selectPhase(phase);
     if (engineRef.current) setSnap(engineRef.current.snapshot());
   }, []);
 
@@ -324,27 +416,39 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
     [refresh, persist],
   );
 
+  const completeTask = useCallback(
+    (id: number) => {
+      try {
+        storeRef.current.complete(id);
+      } catch {
+        return;
+      }
+      refresh();
+      persist();
+    },
+    [refresh, persist],
+  );
+
+  const deleteTask = useCallback(
+    (id: number) => {
+      try {
+        storeRef.current.remove(id);
+      } catch {
+        return;
+      }
+      refresh();
+      persist();
+    },
+    [refresh, persist],
+  );
+
   const handleComplete = useCallback(() => {
-    if (selectedId === null) return;
-    try {
-      storeRef.current.complete(selectedId);
-    } catch {
-      return;
-    }
-    refresh();
-    persist();
-  }, [selectedId, refresh, persist]);
+    if (selectedId !== null) completeTask(selectedId);
+  }, [selectedId, completeTask]);
 
   const handleDelete = useCallback(() => {
-    if (selectedId === null) return;
-    try {
-      storeRef.current.remove(selectedId);
-    } catch {
-      return;
-    }
-    refresh();
-    persist();
-  }, [selectedId, refresh, persist]);
+    if (selectedId !== null) deleteTask(selectedId);
+  }, [selectedId, deleteTask]);
 
   /** Desktop "Geri al": blind undo — a no-op when nothing was deleted. */
   const handleUndo = useCallback(() => {
@@ -367,9 +471,22 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
   const handleNext = useCallback(() => {
     const task = queueRef.current.takeNext();
     activeIdRef.current = task ? task.id : null;
+    setAskFocusDone(false);
     refresh();
     persist();
   }, [refresh, persist]);
+
+  /** "Task finished?" answer: yes completes the focus task and pulls the next queued one. */
+  const handleFocusDone = useCallback(
+    (done: boolean) => {
+      setAskFocusDone(false);
+      if (!done) return;
+      const active = activeIdRef.current;
+      if (active !== null) completeTask(active);
+      handleNext();
+    },
+    [completeTask, handleNext],
+  );
 
   const handleDurations = useCallback(
     (next: Durations) => {
@@ -383,8 +500,58 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
     [persist],
   );
 
+  const running = snap?.running ?? false;
+  const phase = snap?.phase ?? 'work';
+  const timeLeft = snap?.timeLeft ?? 0;
+  const ready = engine !== null && snap !== null;
+
+  /** Keyboard shortcuts: Space start/pause, R reset, N next task. */
+  useEffect(() => {
+    if (!ready) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || isInteractive(event.target)) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        if (running) handlePause();
+        else handleStart();
+      } else if (event.key.toLowerCase() === 'r') {
+        handleReset();
+      } else if (event.key.toLowerCase() === 'n') {
+        handleNext();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [ready, running, handleStart, handlePause, handleReset, handleNext]);
+
+  /** Countdown in the tab title while the timer runs. */
+  useEffect(() => {
+    if (!ready) return;
+    document.title = running
+      ? `${clock(timeLeft)} · ${translate(lang, `status_${phase}`)}`
+      : 'pomodoro.';
+    return () => {
+      document.title = 'pomodoro.';
+    };
+  }, [ready, running, timeLeft, phase, lang]);
+
+  /** Closing the tab mid-session asks for confirmation. */
+  useEffect(() => {
+    if (!running) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [running]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = prefs.theme;
+  }, [prefs.theme]);
+
   if (!engine || !snap) {
-    return <div className="min-h-screen bg-[var(--bg)]" data-testid="app-root" />;
+    return <div className="min-h-screen bg-bg" data-testid="app-root" />;
   }
 
   const activeTitle = (() => {
@@ -400,7 +567,7 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
     <I18nProvider lang={lang} setLang={handleLang}>
       <div
         data-testid="app-root"
-        className="mx-auto flex min-h-screen max-w-xl flex-col gap-5 bg-[var(--bg)] px-6 py-8 text-[var(--text-primary)]"
+        className="mx-auto flex min-h-screen max-w-xl flex-col gap-5 lg:max-w-4xl px-5 py-8 sm:py-12 text-[var(--text-primary)]"
       >
         {storageError && (
           <Alert tone="warning" onDismiss={() => setStorageError(false)}>
@@ -414,37 +581,70 @@ export default function PomodoroApp({ storage: injectedStorage }: PomodoroAppPro
             <AlertTitle>{translate(lang, 'storage_fallback_notice')}</AlertTitle>
           </Alert>
         )}
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">pomodoro.</h1>
-          <LanguageToggle lang={lang} onChange={handleLang} />
+        <header className="flex items-center justify-between border-b-[3px] border-[var(--text-primary)] pb-3">
+          <div className="flex items-center gap-2">
+            <h1 className="whitespace-nowrap text-base font-extrabold tracking-tight sm:text-xl">
+              pomodoro<span className="text-[var(--signal)]">.</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={prefs.theme} onChange={(theme) => handlePrefs({ theme })} />
+            <LanguageToggle lang={lang} onChange={handleLang} />
+          </div>
         </header>
-        <TimerPanel
-          phase={snap.phase}
-          timeLeft={snap.timeLeft}
-          pomodoroCount={snap.pomodoroCount}
-          progress={snap.progress}
-        />
-        <ControlsRow
-          running={snap.running}
-          onStart={handleStart}
-          onPause={handlePause}
-          onReset={handleReset}
-        />
-        <TaskSection
-          tasks={pending}
-          queuedIds={queuedIds}
-          selectedId={selectedId}
-          activeTitle={activeTitle}
-          onAdd={handleAdd}
-          onSelect={setSelectedId}
-          onComplete={handleComplete}
-          onDelete={handleDelete}
-          onUndo={handleUndo}
-          onQueue={handleQueue}
-          onNext={handleNext}
-        />
-        <SettingsRow durations={durations} onChange={handleDurations} />
-        <StatsFooter completedToday={snap.completedToday} warning={saveWarning} />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start lg:gap-6">
+          <div className="flex min-w-0 flex-col gap-5">
+            <PhaseTabs phase={snap.phase} running={snap.running} onSelect={handleSelectPhase} />
+            <TimerPanel
+              phase={snap.phase}
+              timeLeft={snap.timeLeft}
+              pomodoroCount={snap.pomodoroCount}
+              progress={snap.progress}
+            />
+            <ControlsRow
+              running={snap.running}
+              onStart={handleStart}
+              onPause={handlePause}
+              onReset={handleReset}
+              onSkip={handleSkip}
+              onExtend={handleExtend}
+            />
+            <TaskSection
+              tasks={pending}
+              queuedIds={queuedIds}
+              selectedId={selectedId}
+              activeTitle={activeTitle}
+              onAdd={handleAdd}
+              onSelect={setSelectedId}
+              onComplete={handleComplete}
+              onDelete={handleDelete}
+              onUndo={handleUndo}
+              onQueue={handleQueue}
+              onNext={handleNext}
+              onCompleteTask={completeTask}
+              onDeleteTask={deleteTask}
+              askFocusDone={askFocusDone}
+              onFocusDone={handleFocusDone}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            <StatsCard
+              today={engine.currentDay()}
+              completedToday={snap.completedToday}
+              goal={prefs.goal}
+              history={prefs.history}
+            />
+            <SpotifyCard prefs={prefs} onChange={handlePrefs} />
+            <PreferencesCard
+              prefs={prefs}
+              onChange={handlePrefs}
+              onPreview={handlePreview}
+              durations={durations}
+              onDurations={handleDurations}
+            />
+            <StatsFooter completedToday={snap.completedToday} warning={saveWarning} />
+          </div>
+        </div>
         <PhaseToast kind={phaseToastKind} onDismiss={() => setPhaseToastKind(null)} />
       </div>
     </I18nProvider>

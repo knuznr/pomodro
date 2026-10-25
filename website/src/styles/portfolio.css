@@ -1,0 +1,128 @@
+/* Portfolio design language — Swiss, flat, text-first.
+   Re-skins the EasyUI token layer in ./tokens.css without touching the EasyUI
+   components. Imported right after tokens.css, so these declarations win at the
+   same specificity.
+
+   Palette
+     dark  (default)  paper #0E0E0D   ink #EDEBE6   muted #A19E96
+     light             paper #F1EFEA   ink #111111  muted #6F6C65
+     signal            #E5391F — one red, used only for the full stop. */
+
+/* ---------------------------------------------------------------- dark -- */
+:root {
+  --paper: #0e0e0d;
+  --ink: #edebe6;
+  --muted: #a19e96;
+  --signal: #e5391f;
+
+  --bg: #0e0e0d;
+  --surface: color-mix(in srgb, #edebe6 4%, #0e0e0d);
+  --surface-hover: color-mix(in srgb, #edebe6 7%, #0e0e0d);
+  --surface-raised: color-mix(in srgb, #edebe6 2.5%, #0e0e0d);
+
+  --border: color-mix(in srgb, #edebe6 15%, #0e0e0d);
+  --border-hover: color-mix(in srgb, #edebe6 26%, #0e0e0d);
+  --border-subtle: color-mix(in srgb, #edebe6 8%, #0e0e0d);
+
+  --text-primary: #edebe6;
+  --text-secondary: #a19e96;
+  --text-muted: color-mix(in srgb, #a19e96 72%, #0e0e0d);
+  --text-subtle: color-mix(in srgb, #a19e96 42%, #0e0e0d);
+
+  --accent: #edebe6;
+  --accent-subtle: color-mix(in srgb, #edebe6 6%, transparent);
+  --accent-glow: transparent;
+  --accent-ring: #edebe6;
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------- light -- */
+:root[data-theme='light'] {
+  --paper: #f1efea;
+  --ink: #111111;
+  --muted: #6f6c65;
+  --signal: #e5391f;
+
+  --bg: #f1efea;
+  --surface: color-mix(in srgb, #111111 3%, #f1efea);
+  --surface-hover: color-mix(in srgb, #111111 6%, #f1efea);
+  --surface-raised: color-mix(in srgb, #111111 1.5%, #f1efea);
+
+  --border: color-mix(in srgb, #111111 15%, #f1efea);
+  --border-hover: color-mix(in srgb, #111111 26%, #f1efea);
+  --border-subtle: color-mix(in srgb, #111111 8%, #f1efea);
+
+  --text-primary: #111111;
+  --text-secondary: #6f6c65;
+  --text-muted: color-mix(in srgb, #6f6c65 75%, #f1efea);
+  --text-subtle: color-mix(in srgb, #6f6c65 45%, #f1efea);
+
+  --accent: #111111;
+  --accent-subtle: color-mix(in srgb, #111111 6%, transparent);
+  --accent-glow: transparent;
+  --accent-ring: #111111;
+
+  color-scheme: light;
+}
+
+/* Tailwind v4 theme — fonts and squared-off corners. Radius utilities read
+   these variables, so EasyUI classes go square without being edited. */
+@theme {
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+}
+
+/* ------------------------------------------------------------- base --- */
+html body {
+  /* Kills the ambient glow set in index.css. */
+  background-image: none;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--ink);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Uppercase, letter-spaced mono label — the portfolio's secondary voice. */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
